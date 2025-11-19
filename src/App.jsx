@@ -13,10 +13,15 @@ import {
   TrendingUp,
   AlertOctagon,
   Download,
-  ShieldCheck, // Logo
-  Sun,         // Ikon Tema
-  Moon,         // Ikon Tema
-  Menu // Ikon untuk Sidebar Toggle
+  ShieldCheck, 
+  Sun, 
+  Moon, 
+  Menu,
+  X,           // Ikon Close untuk Mobile
+  LogOut,      // Ikon Logout
+  User,        // Ikon User Profile
+  ChevronRight, // Ikon Panah
+  CheckCircle2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -24,19 +29,22 @@ import {
   BarChart, 
   Line, 
   Bar, 
+  PieChart, // Chart Baru
+  Pie,      // Chart Baru
+  Cell,     // Chart Baru
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
   Legend 
-} from 'recharts'; // Import recharts
+} from 'recharts';
 import { 
   motion, 
   AnimatePresence, 
   animate 
 } from 'framer-motion';
 
-// -- Data Mock untuk Grafik --
+// -- Data Mock --
 const claimTrendsData = [
   { name: 'Jan', claims: 4000, anomalies: 240 },
   { name: 'Feb', claims: 3000, anomalies: 139 },
@@ -55,18 +63,40 @@ const anomalyData = [
   { name: 'Lainnya', value: 100 },
 ];
 
+// Warna untuk Pie Chart
+const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+
 // -- Komponen Utama Aplikasi --
 export default function App() {
-  // State untuk tema, default mengambil dari localStorage atau 'light'
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme ? savedTheme : 'light';
   });
 
-  // State untuk sidebar
+  // Responsiveness Logic
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Effect untuk mengubah class di <html> dan menyimpan ke localStorage
+  // Loading Simulation State
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsMobile(true);
+        setIsSidebarOpen(false);
+      } else {
+        setIsMobile(false);
+        setIsSidebarOpen(true);
+      }
+    };
+    
+    // Initial check
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -81,42 +111,66 @@ export default function App() {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  // Fungsi untuk toggle sidebar
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
 
-  // Fungsi untuk me-render halaman
   const [page, setPage] = useState('dashboard');
+  
+  // Simulasi Loading saat ganti halaman
+  const handlePageChange = (newPage) => {
+    if (newPage === page) return;
+    setIsLoading(true);
+    setPage(newPage);
+    // Jika mobile, tutup sidebar setelah klik
+    if (isMobile) setIsSidebarOpen(false);
+    
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 600); // 600ms loading simulation
+  };
+
   const renderPage = () => {
+    if (isLoading) return <LoadingSkeleton key="loading" />;
+    
     switch(page) {
-      case 'dashboard':
-        return <DashboardPage key="dashboard" />;
-      case 'analysis':
-        return <ClaimAnalysisPage key="analysis" />;
-      case 'alerts':
-        return <AlertsPage key="alerts" />;
-      case 'audit':
-        return <AuditTrailPage key="audit" />;
-      case 'reports':
-        return <ReportsPage key="reports" />;
-      case 'settings':
-        return <SettingsPage key="settings" theme={theme} toggleTheme={toggleTheme} />;
-      default:
-        return <DashboardPage key="dashboard" />;
+      case 'dashboard': return <DashboardPage key="dashboard" />;
+      case 'analysis': return <ClaimAnalysisPage key="analysis" />;
+      case 'alerts': return <AlertsPage key="alerts" />;
+      case 'audit': return <AuditTrailPage key="audit" />;
+      case 'reports': return <ReportsPage key="reports" />;
+      case 'settings': return <SettingsPage key="settings" theme={theme} toggleTheme={toggleTheme} />;
+      default: return <DashboardPage key="dashboard" />;
     }
   };
 
   return (
-    // Container utama diubah ke "Soft UI": Latar belakang flat dan bersih
-    // Transisi warna ditambahkan untuk perpindahan tema yang mulus
-    <div className="flex h-screen bg-slate-100 dark:bg-slate-950 text-gray-800 dark:text-slate-300 font-sans transition-colors duration-300 overflow-hidden">
-      <Sidebar activePage={page} setPage={setPage} isSidebarOpen={isSidebarOpen} />
-      {/* Konten utama kini memiliki margin kiri yang disesuaikan dengan status sidebar */}
-      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-slate-300 font-sans transition-colors duration-300 overflow-hidden relative">
+      
+      {/* 1. Ambient Background Blobs (KUNCI GLASSMORPHISM) */}
+      <BackgroundBlobs />
+
+      {/* 2. Mobile Overlay (Backdrop hitam saat sidebar buka di HP) */}
+      {isMobile && isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <Sidebar 
+        activePage={page} 
+        setPage={handlePageChange} 
+        isSidebarOpen={isSidebarOpen} 
+        toggleSidebar={toggleSidebar}
+        isMobile={isMobile}
+      />
+      
+      {/* Main Content Wrapper */}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative z-10 ${!isMobile && isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header theme={theme} toggleTheme={toggleTheme} toggleSidebar={toggleSidebar} />
-        {/* Konten utama yang dapat di-scroll */}
-        <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+        
+        <main className="flex-1 p-4 lg:p-8 overflow-y-auto scroll-smooth">
           <AnimatePresence mode="wait">
             {renderPage()}
           </AnimatePresence>
@@ -126,10 +180,34 @@ export default function App() {
   );
 }
 
-// -- Komponen Layout --
+// -- Komponen Visual Ambient Background --
+const BackgroundBlobs = () => (
+  <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    {/* Blob Hijau/Emerald (Kiri Atas) */}
+    <div className="absolute -top-20 -left-20 w-96 h-96 bg-emerald-400/20 dark:bg-emerald-600/10 rounded-full blur-3xl animate-pulse" />
+    {/* Blob Biru (Kanan Bawah) */}
+    <div className="absolute -bottom-20 -right-20 w-[500px] h-[500px] bg-blue-400/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-pulse delay-700" />
+    {/* Blob Ungu (Tengah Bergerak) */}
+    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-bounce duration-[10s]" />
+  </div>
+);
 
-// Sidebar
-const Sidebar = ({ activePage, setPage, isSidebarOpen }) => {
+// -- Skeleton Loader Component --
+const LoadingSkeleton = () => (
+  <motion.div 
+    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    className="space-y-6 animate-pulse"
+  >
+    <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/4"></div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+       {[1,2,3,4].map(i => <div key={i} className="h-32 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>)}
+    </div>
+    <div className="h-80 bg-slate-200 dark:bg-slate-800 rounded-2xl"></div>
+  </motion.div>
+);
+
+// -- Sidebar --
+const Sidebar = ({ activePage, setPage, isSidebarOpen, toggleSidebar, isMobile }) => {
   const navItems = [
     { name: 'Dashboard', icon: LayoutDashboard, page: 'dashboard' },
     { name: 'Claim Analysis', icon: FileSearch, page: 'analysis' },
@@ -140,18 +218,27 @@ const Sidebar = ({ activePage, setPage, isSidebarOpen }) => {
   ];
 
   return (
-    // Sidebar kini "Glassmorphism"
-    // Latar belakang transparan, blur, dan border halus
-    <div className={`fixed top-0 left-0 h-full z-20 w-64 p-6 flex flex-col flex-shrink-0 
-                   bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg 
-                   border-r border-white/30 dark:border-slate-700/30
+    <div className={`fixed top-0 left-0 h-full z-30 w-64 p-6 flex flex-col flex-shrink-0 
+                   bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl 
+                   border-r border-white/40 dark:border-slate-700/40
+                   shadow-2xl lg:shadow-none
                    transition-transform duration-300 ease-in-out 
                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="flex items-center space-x-2 mb-10">
-        <ShieldCheck className="text-emerald-500" size={28} />
-        <h3 className="text-2xl font-bold text-gray-700 dark:text-slate-200">SATRIA JKN</h3>
+      
+      <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center space-x-2">
+           <ShieldCheck className="text-emerald-500 drop-shadow-md" size={28} />
+           <h3 className="text-2xl font-bold text-gray-700 dark:text-slate-200 tracking-tight">SATRIA JKN</h3>
+        </div>
+        {/* Tombol Close di Mobile */}
+        {isMobile && (
+          <button onClick={toggleSidebar} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            <X size={20} />
+          </button>
+        )}
       </div>
-      <nav className="flex flex-col space-y-3">
+
+      <nav className="flex flex-col space-y-2">
         {navItems.map((item) => (
           <NavItem
             key={item.page}
@@ -162,557 +249,451 @@ const Sidebar = ({ activePage, setPage, isSidebarOpen }) => {
           />
         ))}
       </nav>
+
+      {/* Footer Sidebar */}
+      <div className="mt-auto pt-6 border-t border-gray-200/50 dark:border-gray-700/50">
+          <div className="flex items-center space-x-3 p-3 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl">
+             <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+               SJ
+             </div>
+             <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">BPJS Kesehatan</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">Ver. 2.5.0 (Beta)</p>
+             </div>
+          </div>
+      </div>
     </div>
   );
 };
 
-// Header
+// -- Header dengan Dropdown --
 const Header = ({ theme, toggleTheme, toggleSidebar }) => {
   return (
-    // Header kini "Glassmorphism"
-    // Latar belakang transparan, blur, dan border halus
-    <header className="flex-shrink-0 p-6 lg:p-8 relative z-10 
-                   bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg 
-                   border-b border-white/30 dark:border-slate-700/30">
+    <header className="flex-shrink-0 p-4 lg:px-8 lg:py-5 relative z-20 
+                   bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl 
+                   border-b border-white/40 dark:border-slate-700/40 sticky top-0">
       <div className="flex justify-between items-center space-x-4">
-        <div className="flex items-center flex-1 min-w-0"> {/* Wrapper untuk Tombol Toggle + Search */}
-          {/* Tombol Toggle Sidebar - Gaya baru untuk Glass */}
-          <GlassButton onClick={toggleSidebar} className="mr-4">
+        
+        <div className="flex items-center flex-1 min-w-0 gap-4"> 
+          <GlassButton onClick={toggleSidebar} className="lg:hidden">
             <Menu size={20} />
           </GlassButton>
 
-          {/* Search Bar - Gaya baru untuk Glass */}
-          <div className="flex items-center w-full max-w-lg rounded-full 
-                       bg-white/50 dark:bg-slate-800/50 
-                       shadow-[inset_2px_2px_4px_#0000001a,inset_-2px_-2px_4px_#ffffff80] 
-                       dark:shadow-[inset_2px_2px_6px_#0e1118,inset_-2px_-2px_6px_#3a435a] 
-                       px-5 py-3">
-            <Search className="text-gray-500 dark:text-slate-500" size={20} />
+          {/* Search Bar Glass */}
+          <div className="hidden md:flex items-center w-full max-w-md rounded-full 
+                        bg-white/40 dark:bg-slate-800/40 
+                        border border-white/50 dark:border-slate-600/30
+                        shadow-sm focus-within:shadow-md focus-within:border-emerald-400 transition-all
+                        px-4 py-2.5">
+            <Search className="text-gray-400 dark:text-slate-500" size={18} />
             <input
               type="text"
-              placeholder="Search Claims, Alerts, or Reports..."
-              className="bg-transparent ml-3 w-full outline-none placeholder-gray-500 dark:placeholder-slate-500 text-gray-700 dark:text-slate-300"
+              placeholder="Search Claims, Providers..."
+              className="bg-transparent ml-3 w-full outline-none placeholder-gray-400 dark:placeholder-slate-500 text-gray-700 dark:text-slate-200 text-sm"
             />
           </div>
         </div>
         
-        {/* Ikon User, Notifikasi & Tombol Tema - Gaya baru untuk Glass */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <GlassButton onClick={toggleTheme}>
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </GlassButton>
-          <GlassButton>
-            <Bell size={20} />
-          </GlassButton>
-          <GlassButton>
-            <UserCircle size={20} />
-          </GlassButton>
+          
+          {/* Notification Dropdown */}
+          <NotificationDropdown />
+          
+          {/* Profile Dropdown */}
+          <ProfileDropdown />
         </div>
       </div>
     </header>
   );
 };
 
-// -- Halaman-Halaman --
+// -- Dropdown Components (NEW) --
 
-// Varian animasi untuk transisi halaman
-const pageVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-  transition: { duration: 0.3, ease: 'easeInOut' }
+const NotificationDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <GlassButton onClick={() => setIsOpen(!isOpen)} className="relative">
+        <Bell size={18} />
+        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+      </GlassButton>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-3 w-80 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 overflow-hidden"
+          >
+            <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+              <h5 className="font-semibold text-sm dark:text-white">Notifications</h5>
+              <span className="text-xs text-emerald-500 font-medium cursor-pointer">Mark all read</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {[1, 2, 3].map((_, i) => (
+                <div key={i} className="p-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors border-b border-gray-50 dark:border-slate-700/50 last:border-0 flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-800 dark:text-slate-200">High Risk Anomaly Detected</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Claim ID #49201 - Upcoding potential</p>
+                    <p className="text-[10px] text-gray-400 mt-1">2 mins ago</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-3 bg-gray-50 dark:bg-slate-800/50 text-center border-t border-gray-100 dark:border-slate-700">
+              <button className="text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-500 transition-colors">View All Alerts</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 };
 
-// Halaman Dashboard
+const ProfileDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <GlassButton onClick={() => setIsOpen(!isOpen)}>
+        <UserCircle size={18} />
+      </GlassButton>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-3 w-64 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 p-2"
+          >
+            <div className="flex items-center p-3 mb-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                A
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-bold text-gray-800 dark:text-white">Admin Verifikator</p>
+                <p className="text-xs text-gray-500 dark:text-emerald-300">admin@bpjs.go.id</p>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <MenuItem icon={User} label="Profile Settings" />
+              <MenuItem icon={Settings} label="Preferences" />
+              <div className="h-px bg-gray-200 dark:bg-slate-700 my-1"></div>
+              <MenuItem icon={LogOut} label="Sign Out" danger />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const MenuItem = ({ icon: Icon, label, danger }) => (
+  <button className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors
+    ${danger 
+      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' 
+      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+    }`}>
+    <Icon size={16} />
+    <span>{label}</span>
+    {!danger && <ChevronRight size={14} className="ml-auto opacity-50" />}
+  </button>
+);
+
+// -- Dashboard Page --
 const DashboardPage = () => {
   const recentAlerts = [
     { id: '001', type: 'Upcoding', date: '2025-11-10', status: 'High Risk' },
     { id: '002', type: 'Fiktif', date: '2025-11-09', status: 'Resolved' },
     { id: '003', type: 'Duplikat', date: '2025-11-08', status: 'Medium Risk' },
-    { id: '004', type: 'Unbundling', date: '2025-11-07', status: 'Investigating' },
   ];
 
   return (
     <motion.div 
-      className="space-y-8"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
+      className="space-y-6"
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
     >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Overview</h4>
+      <div className="flex justify-between items-end">
+        <div>
+          <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight">Dashboard Overview</h4>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Welcome back, Verifikator. Here's what's happening today.</p>
+        </div>
+        <div className="hidden md:block">
+           <AppButton>Download Report</AppButton>
+        </div>
+      </div>
       
-      {/* Grid untuk Kartu Statistik */}
+      {/* Grid Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Claims" value={300} unit="M" Icon={TrendingUp} />
-        <StatCard title="Detected Anomalies" value="5-10%" Icon={AlertOctagon} />
-        <StatCard title="Fraud Alerts" value={120} prefix="Active: " Icon={AlertTriangle} />
-        <StatCard title="Potential Savings" value="Rp5-10T" Icon={DollarSign} />
+        <StatCard title="Total Claims" value={300} unit="M" Icon={TrendingUp} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Anomalies" value={2450} prefix="" Icon={AlertOctagon} gradient="from-red-500 to-red-600" />
+        <StatCard title="Fraud Savings" value="Rp12" unit="B" Icon={DollarSign} gradient="from-emerald-500 to-emerald-600" />
+        <StatCard title="Pending Review" value={120} Icon={FileSearch} gradient="from-amber-500 to-amber-600" />
       </div>
 
-      {/* Grafik Claim Trends */}
-      <SoftCard className="h-80">
-        <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-4">Claim Trends</h5>
-        <ClaimTrendsChart />
-      </SoftCard>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
+         {/* Grafik Utama - Takes 2 cols */}
+         <div className="lg:col-span-2 h-full">
+            <SoftCard className="h-full flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                 <h5 className="text-lg font-bold text-gray-700 dark:text-slate-200">Claim Trends Analysis</h5>
+                 <div className="flex gap-2">
+                    <div className="flex items-center text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-blue-500 mr-1"></span>Claims</div>
+                    <div className="flex items-center text-xs text-gray-500"><span className="w-3 h-3 rounded-full bg-emerald-400 mr-1"></span>Anomalies</div>
+                 </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                <ClaimTrendsChart />
+              </div>
+            </SoftCard>
+         </div>
 
-      {/* Tabel Peringatan Terbaru */}
-      <h4 className="text-xl font-semibold text-gray-700 dark:text-slate-200 pt-4">Recent Alerts</h4>
-      <TableCard
-        headers={['ID', 'Type', 'Date', 'Status']}
-        data={recentAlerts.map(alert => [
-          alert.id, 
-          alert.type, 
-          alert.date, 
-          <StatusBadge status={alert.status} />
-        ])}
-      />
+         {/* Ringkasan Cepat / Progress - Takes 1 col */}
+         <div className="h-full">
+            <SoftCard className="h-full flex flex-col relative overflow-hidden">
+              <h5 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-6">System Status</h5>
+              <div className="space-y-6 relative z-10">
+                 <ProgressItem label="Server Uptime" percent={99.9} color="bg-emerald-500" />
+                 <ProgressItem label="AI Model Accuracy" percent={94.2} color="bg-blue-500" />
+                 <ProgressItem label="Database Load" percent={45} color="bg-purple-500" />
+                 <ProgressItem label="Verification Speed" percent={88} color="bg-amber-500" />
+              </div>
+              {/* Dekorasi background card */}
+              <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-xl"></div>
+            </SoftCard>
+         </div>
+      </div>
+
+      {/* Recent Alerts Table */}
+      <div>
+        <h4 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-4">High Priority Alerts</h4>
+        <TableCard
+          headers={['ID', 'Type', 'Date', 'Status', 'Action']}
+          data={recentAlerts.map(alert => [
+            <span className="font-mono text-gray-500">{alert.id}</span>, 
+            <span className="font-medium text-gray-700 dark:text-gray-200">{alert.type}</span>, 
+            alert.date, 
+            <StatusBadge status={alert.status} />,
+            <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Review</button>
+          ])}
+        />
+      </div>
     </motion.div>
   );
 };
 
-// Halaman Claim Analysis
+// -- Analysis Page dengan PIE CHART Baru --
 const ClaimAnalysisPage = () => {
-  const claims = [
-    { id: 'CL001', provider: 'Hospital A', date: '2025-11-10', amount: 'Rp1M', status: 'Anomalous' },
-    { id: 'CL002', provider: 'Clinic B', date: '2025-11-09', amount: 'Rp500K', status: 'Normal' },
-    { id: 'CL003', provider: 'Hospital A', date: '2025-11-08', amount: 'Rp2.5M', status: 'Anomalous' },
-    { id: 'CL004', provider: 'Lab C', date: '2025-11-07', amount: 'Rp150K', status: 'Normal' },
-  ];
   return (
     <motion.div 
-      className="space-y-8"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
+      className="space-y-6"
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
     >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Claim Analysis</h4>
-      
-      {/* Filter Bar */}
-      <SoftCard className="p-6">
-        <div className="flex flex-wrap gap-4 items-center">
-          <span className="font-semibold dark:text-slate-300">Filters:</span>
-          <FilterButton label="Date Range" />
-          <FilterButton label="Claim Type" />
-          <FilterButton label="Provider" />
-          <FilterButton label="Status" />
+      <div className="flex justify-between items-center">
+        <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Claim Analysis</h4>
+        <div className="flex gap-2">
+           <FilterButton label="Last 30 Days" />
+           <FilterButton label="Hospital" />
         </div>
-      </SoftCard>
-
-      {/* Grafik Anomaly Detection */}
-      <SoftCard className="h-80">
-        <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-4">Anomaly Detection Chart</h5>
-        <AnomalyDetectionChart />
-      </SoftCard>
-
-      {/* Tabel Daftar Klaim */}
-      <h4 className="text-xl font-semibold text-gray-700 dark:text-slate-200 pt-4">Claim List</h4>
-      <TableCard
-        headers={['Claim ID', 'Provider', 'Date', 'Amount', 'Status']}
-        data={claims.map(claim => [
-          claim.id, 
-          claim.provider, 
-          claim.date, 
-          claim.amount, 
-          <StatusBadge status={claim.status} />
-        ])}
-      />
-    </motion.div>
-  );
-};
-
-// Halaman Alerts
-const AlertsPage = () => {
-  const alerts = [
-    { id: 'AL001', type: 'Upcoding', date: '2025-11-10', risk: 'High', action: 'Investigate' },
-    { id: 'AL002', type: 'Fiktif', date: '2025-11-09', risk: 'Medium', action: 'Review' },
-    { id: 'AL003', type: 'Duplikat', date: '2025-11-08', risk: 'Medium', action: 'Review' },
-    { id: 'AL004', type: 'Unbundling', date: '2025-11-07', risk: 'Low', action: 'Monitor' },
-  ];
-  return (
-    <motion.div 
-      className="space-y-8"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
-    >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Alerts</h4>
-
-      {/* Kartu Ringkasan Peringatan */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="High Risk" value={50} Icon={AlertTriangle} color="text-red-500 dark:text-red-400" />
-        <StatCard title="Medium Risk" value={40} Icon={AlertTriangle} color="text-yellow-600 dark:text-yellow-400" />
-        <StatCard title="Low Risk" value={30} Icon={AlertTriangle} color="text-green-500 dark:text-green-400" />
       </div>
 
-      {/* Tabel Daftar Peringatan */}
-      <h4 className="text-xl font-semibold text-gray-700 dark:text-slate-200 pt-4">Alert List</h4>
-      <TableCard
-        headers={['Alert ID', 'Type', 'Date', 'Risk Level', 'Action']}
-        data={alerts.map(alert => [
-          alert.id, 
-          alert.type, 
-          alert.date, 
-          <StatusBadge status={alert.risk} />, 
-          <AppButton flat size="sm">{alert.action}</AppButton>
-        ])}
-      />
-    </motion.div>
-  );
-};
-
-// Halaman Audit Trail
-const AuditTrailPage = () => {
-  const logs = [
-    { id: 'LOG001', user: 'Admin', action: 'Verified Claim', date: '2025-11-10', details: 'Claim ID: CL001' },
-    { id: 'LOG002', user: 'Auditor', action: 'Flagged Alert', date: '2025-11-09', details: 'Alert ID: AL001' },
-    { id: 'LOG003', user: 'System', action: 'Generated Report', date: '2025-11-09', details: 'Report ID: RP002' },
-    { id: 'LOG004', user: 'Admin', action: 'Updated Settings', date: '2025-11-08', details: 'Thresholds updated' },
-  ];
-  return (
-    <motion.div 
-      className="space-y-8"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
-    >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Audit Trail</h4>
-      
-      {/* Filter Bar */}
-      <SoftCard className="p-6">
-        <div className="flex flex-wrap gap-4 items-center">
-          <span className="font-semibold dark:text-slate-300">Filters:</span>
-          <FilterButton label="Date Range" />
-          <FilterButton label="User" />
-          <FilterButton label="Action Type" />
-        </div>
-      </SoftCard>
-
-      {/* Tabel Log Audit */}
-      <h4 className="text-xl font-semibold text-gray-700 dark:text-slate-200 pt-4">Audit Logs</h4>
-      <TableCard
-        headers={['Log ID', 'User', 'Action', 'Date', 'Details']}
-        data={logs.map(log => [
-          log.id, 
-          log.user, 
-          log.action, 
-          log.date, 
-          log.details
-        ])}
-      />
-    </motion.div>
-  );
-};
-
-// Halaman Reports
-const ReportsPage = () => {
-  const reports = [
-    { id: 'RP001', type: 'Fraud Summary', date: '2025-11-10' },
-    { id: 'RP002', type: 'Claim Trends', date: '2025-11-09' },
-    { id: 'RP003', type: 'Provider Anomaly', date: '2025-11-08' },
-  ];
-  return (
-    <motion.div 
-      className="space-y-8"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
-    >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Reports</h4>
-      
-      {/* Form Generate Report */}
-      <SoftCard className="p-6 space-y-4">
-        <h5 className="text-lg font-semibold dark:text-slate-200">Generate Report</h5>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SoftInput label="Report Type" />
-          <SoftInput label="Start Date" type="date" />
-          <SoftInput label="End Date" type="date" />
-        </div>
-        <AppButton>Generate</AppButton>
-      </SoftCard>
-
-      {/* Grafik Report Preview */}
-      <SoftCard className="h-80">
-        <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-4">Report Preview Chart</h5>
-        <ReportPreviewChart />
-      </SoftCard>
-
-      {/* Tabel Laporan */}
-      <h4 className="text-xl font-semibold text-gray-700 dark:text-slate-200 pt-4">Generated Reports</h4>
-      <TableCard
-        headers={['Report ID', 'Type', 'Date', 'Download']}
-        data={reports.map(report => [
-          report.id, 
-          report.type, 
-          report.date, 
-          <AppButton flat size="sm">
-            <Download size={16} className="mr-2" />
-            Download
-          </AppButton>
-        ])}
-      />
-    </motion.div>
-  );
-};
-
-// Halaman Settings
-const SettingsPage = ({ theme, toggleTheme }) => {
-  return (
-    <motion.div 
-      className="space-y-8 max-w-4xl"
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageVariants.transition}
-    >
-      <h4 className="text-2xl font-semibold text-gray-700 dark:text-slate-200">Settings</h4>
-      
-      {/* User Preferences */}
-      <SoftCard className="p-6 space-y-6">
-        <h5 className="text-lg font-semibold dark:text-slate-200">User Preferences</h5>
-        <SoftInput label="Email Notifications" />
-        <SoftInput label="In-App Notifications" />
-        {/* Toggle Tema di Halaman Settings */}
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-medium text-gray-600 dark:text-slate-400">Theme (Light/Dark)</label>
-          {/* Tombol di sini bisa tetap Neumorphic/AppButton atau GlassButton */}
-          <AppButton onClick={toggleTheme}>
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </AppButton>
-        </div>
-      </SoftCard>
-
-      {/* System Configuration */}
-      <SoftCard className="p-6 space-y-6">
-        <h5 className="text-lg font-semibold dark:text-slate-200">System Configuration</h5>
-        <SoftInput label="API Integrations" />
-        <SoftInput label="Alert Thresholds" />
-        <SoftInput label="User Roles" />
-      </SoftCard>
-
-      <AppButton>Save Changes</AppButton>
-    </motion.div>
-  );
-};
-
-
-// -- Komponen-Komponen Grafik (BARU) --
-
-const ChartTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      // Tooltip diubah ke Soft UI
-      <div className="bg-white/90 dark:bg-slate-800/90 p-3 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700">
-        <p className="label text-sm font-semibold text-gray-700 dark:text-slate-200">{`${label}`}</p>
-        {payload.map((entry, index) => (
-          <p key={`item-${index}`} style={{ color: entry.color }} className="text-sm">
-            {`${entry.name}: ${entry.value}`}
-          </p>
-        ))}
+      {/* Dual Chart Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[350px]">
+         {/* Chart 1: Bar Anomaly */}
+         <SoftCard className="h-full flex flex-col">
+            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Anomaly Count by Type</h5>
+            <div className="flex-1 min-h-0">
+               <AnomalyDetectionChart />
+            </div>
+         </SoftCard>
+         
+         {/* Chart 2: Pie Distribution (NEW) */}
+         <SoftCard className="h-full flex flex-col">
+            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Fraud Distribution</h5>
+            <div className="flex-1 min-h-0 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={anomalyData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {anomalyData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+                    <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+            </div>
+         </SoftCard>
       </div>
-    );
-  }
-  return null;
+
+      <SoftCard className="p-0 overflow-hidden">
+         <div className="p-4 border-b border-gray-100 dark:border-slate-700">
+            <h5 className="font-semibold dark:text-white">Deep Dive Data</h5>
+         </div>
+         <TableCard 
+            noCard 
+            headers={['Claim ID', 'Provider', 'Date', 'Amount', 'Risk Score']} 
+            data={[
+               ['CL-992', 'RSUD Cengkareng', '2025-11-10', 'Rp 45.000.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-red-500 h-2 rounded-full" style={{width: '85%'}}></div></div>],
+               ['CL-993', 'Klinik Sehat', '2025-11-09', 'Rp 1.200.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{width: '45%'}}></div></div>],
+               ['CL-994', 'RS Harapan', '2025-11-08', 'Rp 12.500.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{width: '15%'}}></div></div>],
+            ]}
+         />
+      </SoftCard>
+    </motion.div>
+  );
 };
 
-// Grafik Garis untuk Dashboard
-const ClaimTrendsChart = () => (
-  <ResponsiveContainer width="100%" height="90%">
-    <LineChart data={claimTrendsData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-      <XAxis 
-        dataKey="name" 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <YAxis 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <Tooltip content={<ChartTooltip />} />
-      <Legend />
-      <Line type="monotone" dataKey="claims" stroke="#3b82f6" strokeWidth={2} activeDot={{ r: 8 }} />
-      {/* Aksen hijau/emerald */}
-      <Line type="monotone" dataKey="anomalies" stroke="#10b981" strokeWidth={2} activeDot={{ r: 8 }} />
-    </LineChart>
-  </ResponsiveContainer>
+// Placeholder pages
+const AlertsPage = () => <PlaceholderPage title="Alerts Management" icon={AlertTriangle} />;
+const AuditTrailPage = () => <PlaceholderPage title="System Audit Logs" icon={History} />;
+const ReportsPage = () => <PlaceholderPage title="Generated Reports" icon={FileText} />;
+
+const SettingsPage = ({ theme, toggleTheme }) => (
+   <motion.div 
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
+      className="max-w-2xl"
+   >
+      <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100 mb-6">Settings</h4>
+      
+      <SoftCard className="space-y-6">
+         <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-700">
+            <div>
+               <p className="font-semibold dark:text-white">Appearance</p>
+               <p className="text-sm text-gray-500">Customize how SATRIA JKN looks on your device.</p>
+            </div>
+            <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+               <button onClick={() => theme === 'dark' && toggleTheme()} className={`p-2 rounded-md transition-all ${theme === 'light' ? 'bg-white shadow text-emerald-600' : 'text-gray-500'}`}><Sun size={20}/></button>
+               <button onClick={() => theme === 'light' && toggleTheme()} className={`p-2 rounded-md transition-all ${theme === 'dark' ? 'bg-slate-600 shadow text-emerald-400' : 'text-gray-500'}`}><Moon size={20}/></button>
+            </div>
+         </div>
+         
+         <div className="space-y-4">
+            <SoftInput label="System Name" value="SATRIA JKN - Fraud Detection System" readOnly />
+            <SoftInput label="API Endpoint" value="https://api.bpjs-kesehatan.go.id/v2/fraud" readOnly />
+         </div>
+
+         <div className="pt-4">
+            <AppButton className="w-full">Save Configuration</AppButton>
+         </div>
+      </SoftCard>
+   </motion.div>
 );
 
-// Grafik Batang untuk Claim Analysis
-const AnomalyDetectionChart = () => (
-  <ResponsiveContainer width="100%" height="90%">
-    <BarChart data={anomalyData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-      <XAxis 
-        dataKey="name" 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <YAxis 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <Tooltip content={<ChartTooltip />} />
-      {/* Aksen hijau/emerald */}
-      <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-    </BarChart>
-  </ResponsiveContainer>
+// -- Helper Components --
+
+const PlaceholderPage = ({ title, icon: Icon }) => (
+   <motion.div 
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
+      className="flex flex-col items-center justify-center h-[60vh] text-center"
+   >
+      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 animate-pulse">
+         <Icon size={40} className="text-slate-400" />
+      </div>
+      <h2 className="text-xl font-bold text-gray-700 dark:text-slate-200">{title}</h2>
+      <p className="text-gray-500 dark:text-slate-400 mt-2 max-w-md">
+         This module is currently being connected to the live database. Please check back later.
+      </p>
+   </motion.div>
 );
 
-// Grafik Garis untuk Laporan (Mirip ClaimTrends)
-const ReportPreviewChart = () => (
-  <ResponsiveContainer width="100%" height="90%">
-    <LineChart data={claimTrendsData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-      <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
-      <XAxis 
-        dataKey="name" 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <YAxis 
-        tick={{ fill: 'currentColor' }} 
-        className="text-xs text-gray-600 dark:text-slate-400" 
-        stroke="currentColor"
-        strokeOpacity={0.3}
-      />
-      <Tooltip content={<ChartTooltip />} />
-      <Legend />
-      {/* Aksen hijau/emerald */}
-      <Line type="monotone" dataKey="anomalies" stroke="#10b981" strokeWidth={2} />
-    </LineChart>
-  </ResponsiveContainer>
+const ProgressItem = ({ label, percent, color }) => (
+  <div>
+    <div className="flex justify-between mb-1">
+      <span className="text-xs font-semibold text-gray-700 dark:text-slate-300">{label}</span>
+      <span className="text-xs font-bold text-gray-700 dark:text-slate-300">{percent}%</span>
+    </div>
+    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+      <motion.div 
+        initial={{ width: 0 }} animate={{ width: `${percent}%` }} transition={{ duration: 1, ease: "easeOut" }}
+        className={`${color} h-2 rounded-full`}
+      ></motion.div>
+    </div>
+  </div>
 );
 
-// -- Komponen Animasi (BARU) --
-
-// Komponen untuk menganimasikan angka
-function AnimatedNumber({ value }) {
-  const nodeRef = useRef(null);
-
-  useEffect(() => {
-    const node = nodeRef.current;
-    if (!node) return;
-
-    // Animasikan dari 0 ke nilai target
-    const controls = animate(0, value, {
-      duration: 1.2,
-      ease: "easeOut",
-      onUpdate(latest) {
-        // Format dengan koma, tanpa desimal
-        node.textContent = Math.round(latest).toLocaleString('en-US');
-      }
-    });
-
-    return () => controls.stop();
-  }, [value]); // Hanya bergantung pada 'value'
-
-  return <span ref={nodeRef}>0</span>; // Mulai dari 0
-}
-
-
-// -- Komponen-Komponen Kecil (Reusable) dengan Update Dark Mode --
-
-// Tombol Navigasi di Sidebar
-// Gaya Neumorphic (inset) terlihat bagus di atas Glassmorphism, jadi kita biarkan
 const NavItem = ({ Icon, label, isActive, onClick }) => {
-  const baseStyle = "flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all duration-300 bg-green";
-  // Gaya Cekung (Inset) untuk item aktif - Aksen Hijau/Emerald di dark mode
-  const activeStyle = `
-    text-blue-600 font-semibold 
-    shadow-[inset_3px_3px_6px_#0000001a,inset_-3px_-3px_6px_#ffffff80]
-    dark:text-emerald-400 
-    dark:shadow-[inset_3px_3px_6px_#0e1118,inset_-3px_-3px_6px_#3a435a]
-  `;
-  // Gaya Cembung (Outset) untuk item non-aktif
-  // Disederhanakan untuk Glassmorphism
-  const inactiveStyle = `
-    text-gray-600 font-medium 
-    hover:text-blue-500 
-    hover:bg-black/5 dark:hover:bg-white/5
-    dark:text-slate-400 
-    dark:hover:text-emerald-400 
-    transition-colors duration-200
-  `;
+  const activeStyle = "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 font-semibold shadow-sm border border-emerald-100 dark:border-emerald-500/20";
+  const inactiveStyle = "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200";
 
   return (
     <div
-      className={`${baseStyle} ${isActive ? activeStyle : inactiveStyle}`}
       onClick={onClick}
+      className={`flex items-center space-x-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${isActive ? activeStyle : inactiveStyle}`}
     >
-      <Icon size={20} />
+      <Icon size={20} className={`transition-transform group-hover:scale-110 ${isActive ? 'stroke-2' : 'stroke-[1.5]'}`} />
       <span>{label}</span>
+      {isActive && <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />}
     </div>
   );
 };
 
-// Tombol Neumorphic diubah namanya menjadi AppButton
-// Gayanya diubah ke "Soft UI" (bayangan simpel)
 const AppButton = ({ children, onClick, flat = false, size = 'md', className = '' }) => {
-  const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-5 py-2.5 text-sm',
-  };
-  // Gaya Cembung (Outset) -> Diubah ke Primary Button
-  const primaryStyle = `
-    bg-emerald-500 text-white
-    shadow-md hover:shadow-lg hover:bg-emerald-600
-    active:shadow-inner active:scale-95
-    dark:shadow-emerald-700/50
-  `;
-  // Gaya Datar -> Diubah ke Secondary Button
-  const secondaryStyle = `
-    bg-white dark:bg-slate-700
-    shadow-sm hover:shadow-md
-    active:shadow-inner active:scale-95
-    border border-slate-200 dark:border-slate-600
-  `;
+  const baseStyle = "rounded-xl font-semibold transition-all duration-200 flex items-center justify-center active:scale-95";
+  const styles = flat 
+    ? "bg-transparent border border-slate-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800" 
+    : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:-translate-y-0.5";
   
   return (
-    <button
-      onClick={onClick}
-      className={`
-        rounded-lg
-        font-semibold text-gray-700 dark:text-slate-300
-        transition-all duration-200 flex items-center justify-center
-        ${flat ? secondaryStyle : primaryStyle}
-        ${sizeStyles[size]}
-        ${className}
-      `}
-    >
+    <button onClick={onClick} className={`${baseStyle} ${styles} px-5 py-2.5 text-sm ${className}`}>
       {children}
     </button>
   );
 };
 
-// Tombol Kaca (BARU) - Untuk di Header
 const GlassButton = ({ children, onClick, className = '' }) => (
   <button
     onClick={onClick}
     className={`
-      p-2.5 rounded-lg text-gray-700 dark:text-slate-300
-      hover:bg-black/10 dark:hover:bg-white/10
-      active:bg-black/20 dark:active:bg-white/20
-      transition-colors duration-200
+      p-2.5 rounded-xl text-gray-600 dark:text-slate-300
+      bg-white/50 dark:bg-slate-800/50 
+      hover:bg-white dark:hover:bg-slate-700
+      border border-white/20 dark:border-slate-600/20
+      shadow-sm backdrop-blur-sm
+      transition-all duration-200 active:scale-95
       ${className}
     `}
   >
@@ -720,178 +701,166 @@ const GlassButton = ({ children, onClick, className = '' }) => (
   </button>
 );
 
+const SoftCard = ({ children, className = '' }) => (
+  <div className={`
+    bg-white/80 dark:bg-slate-800/80 
+    backdrop-blur-md
+    rounded-2xl 
+    shadow-xl shadow-slate-200/50 dark:shadow-black/30
+    border border-white/50 dark:border-slate-700/50
+    p-6 ${className}
+  `}>
+    {children}
+  </div>
+);
 
-// Kartu Neumorphic diubah menjadi SoftCard
-// Gaya diubah ke "Soft UI" (bayangan simpel)
-const SoftCard = ({ children, className = '' }) => {
-  return (
-    <div className={`
-      bg-white dark:bg-slate-800 
-      rounded-2xl 
-      shadow-lg
-      dark:shadow-black/20
-      p-6 ${className}
-    `}>
-      {children}
-    </div>
-  );
-};
-
-// Kartu Statistik
-// Menggunakan SoftCard (NeumorphicCard yang sudah diubah)
-const StatCard = ({ title, value, unit, prefix, Icon, color = 'text-gray-700' }) => {
+const StatCard = ({ title, value, unit, prefix, Icon, gradient }) => {
   const isNumeric = typeof value === 'number';
-
   return (
-    <SoftCard className="p-5">
-      <div className="flex justify-between items-center">
-        <div className="flex flex-col">
-          <span className="text-sm text-gray-500 dark:text-slate-400">{title}</span>
-          <span className={`text-2xl font-bold ${color} dark:text-slate-200`}>
-            {prefix}
-            {/* Gunakan AnimatedNumber jika 'value' adalah angka */}
-            {isNumeric ? <AnimatedNumber value={value} /> : value}
-            {unit}
+    <SoftCard className="p-5 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+      <div className="relative z-10 flex justify-between items-start">
+        <div>
+          <span className="text-sm font-medium text-gray-500 dark:text-slate-400 block mb-1">{title}</span>
+          <span className="text-3xl font-bold text-gray-800 dark:text-white tracking-tight">
+             {prefix}{isNumeric ? <AnimatedNumber value={value} /> : value}{unit}
           </span>
         </div>
-        <div className={`
-          rounded-full p-3 
-          bg-slate-100 dark:bg-slate-700
-          shadow-[inset_3px_3px_6px_#0000001a,inset_-3px_-3px_6px_#ffffff]
-          dark:shadow-[inset_3px_3px_6px_#0e1118,inset_-3px_-3px_6px_#3a435a]
-          ${color}
-        `}>
-          <Icon size={24} />
+        <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg`}>
+           <Icon size={24} />
         </div>
       </div>
+      {/* Decorative Background glow based on gradient */}
+      <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity bg-gradient-to-br ${gradient}`}></div>
     </SoftCard>
   );
 };
 
-// Input Form Neumorphic diubah ke SoftInput
-// Gaya diubah ke "Soft UI" (border simpel)
-const SoftInput = ({ label, type = 'text' }) => {
-  return (
-    <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 dark:text-slate-400 mb-1">{label}</label>
-      <input
-        type={type}
-        className={`
-          w-full rounded-lg bg-slate-100 dark:bg-slate-700 
-          text-gray-700 dark:text-slate-300
-          border border-slate-300 dark:border-slate-600
-          focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500
-          transition-colors
-          p-3 outline-none
-          ${type === 'date' ? 'cursor-text' : ''}
-        `}
-      />
-    </div>
-  );
-};
+const SoftInput = ({ label, type = 'text', value, readOnly }) => (
+  <div className="flex flex-col">
+    <label className="text-xs font-bold text-gray-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">{label}</label>
+    <input
+      type={type}
+      defaultValue={value}
+      readOnly={readOnly}
+      className={`
+        w-full rounded-xl bg-slate-50 dark:bg-slate-900/50
+        text-gray-700 dark:text-slate-200
+        border border-slate-200 dark:border-slate-700
+        focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20
+        transition-all duration-200
+        px-4 py-3 outline-none text-sm
+      `}
+    />
+  </div>
+);
 
-// Tombol Filter
-// Diubah ke "Soft UI" (border simpel)
-const FilterButton = ({ label }) => {
-  return (
-    <button className={`
-      text-sm font-medium text-gray-700 dark:text-slate-300
-      bg-white dark:bg-slate-700 
-      rounded-full px-4 py-2 
-      shadow-sm
-      border border-slate-200 dark:border-slate-600
-      hover:shadow-md hover:border-emerald-400
-      dark:hover:border-emerald-500
-      transition-all
-    `}>
-      {label}
-    </button>
-  );
-};
+const FilterButton = ({ label }) => (
+  <button className="text-xs font-medium text-gray-600 dark:text-slate-300 bg-white dark:bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-200 dark:border-slate-600 hover:border-emerald-500 transition-all shadow-sm flex items-center gap-1">
+    {label} <ChevronRight size={12} className="rotate-90" />
+  </button>
+);
 
-// Varian untuk animasi tabel (stagger)
-const tableContainerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.07, // Jeda antar baris
-    }
-  }
-};
-
-const tableRowVariants = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { ease: 'easeOut', duration: 0.3 } }
-};
-
-// Kartu untuk membungkus Tabel
-// Diubah ke "Soft UI"
-const TableCard = ({ headers, data }) => {
-  return (
-    // Menggunakan gaya SoftCard
-    <div className={`
-      bg-white dark:bg-slate-800
-      rounded-2xl 
-      shadow-lg
-      dark:shadow-black/20
-      overflow-x-auto
-    `}>
-      <div className="w-full min-w-[700px] overflow-hidden">
-        <table className="w-full">
-          <thead className="border-b-2 border-slate-100 dark:border-slate-700">
-            <tr>
-              {headers.map((header) => (
-                <th key={header} className="p-4 text-left text-sm font-semibold text-gray-500 dark:text-slate-400 uppercase">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <motion.tbody
-            variants={tableContainerVariants}
-            initial="hidden"
-            animate="show"
-          >
-            {data.map((row, rowIndex) => (
-              <motion.tr 
-                key={rowIndex} 
-                variants={tableRowVariants}
-                className="border-b border-slate-100 dark:border-slate-700 last:border-none hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-              >
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="p-4 text-sm text-gray-700 dark:text-slate-300">
-                    {cell}
-                  </td>
-                ))}
-              </motion.tr>
+const TableCard = ({ headers, data, noCard = false }) => {
+  const content = (
+    <div className="w-full overflow-x-auto">
+      <table className="w-full whitespace-nowrap">
+        <thead className="bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-100 dark:border-slate-700">
+          <tr>
+            {headers.map((header) => (
+              <th key={header} className="p-4 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                {header}
+              </th>
             ))}
-          </motion.tbody>
-        </table>
-      </div>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((row, rowIndex) => (
+            <motion.tr 
+              key={rowIndex} 
+              initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: rowIndex * 0.05 }}
+              className="border-b border-slate-50 dark:border-slate-700/50 last:border-none hover:bg-emerald-50/30 dark:hover:bg-emerald-900/10 transition-colors"
+            >
+              {row.map((cell, cellIndex) => (
+                <td key={cellIndex} className="p-4 text-sm text-gray-700 dark:text-slate-300">
+                  {cell}
+                </td>
+              ))}
+            </motion.tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
+  return noCard ? content : <SoftCard className="p-0 overflow-hidden">{content}</SoftCard>;
 };
 
-// Badge Status
 const StatusBadge = ({ status }) => {
-  const statusColors = {
-    'High Risk': 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200',
-    'Anomalous': 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200',
-    'Medium Risk': 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100',
-    'Review': 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100',
-    'Resolved': 'bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200',
-    'Normal': 'bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200',
-    'Low': 'bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    'Monitor': 'bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    'Investigating': 'bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    'High': 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200',
-    'Medium': 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100',
+  const styles = {
+    'High Risk': 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
+    'Resolved': 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
+    'Medium Risk': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+    'Anomalous': 'bg-orange-100 text-orange-700 border-orange-200',
+    'Normal': 'bg-blue-100 text-blue-700 border-blue-200',
   };
-
+  
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}>
+    <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${styles[status] || 'bg-gray-100'} flex items-center w-fit gap-1.5`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${status.includes('High') ? 'bg-red-500 animate-pulse' : 'bg-current'}`}></span>
       {status}
     </span>
   );
 };
+
+// -- Animation Components --
+function AnimatedNumber({ value }) {
+  const nodeRef = useRef(null);
+  useEffect(() => {
+    const node = nodeRef.current;
+    if (!node) return;
+    const controls = animate(0, value, {
+      duration: 1.5, ease: "easeOut",
+      onUpdate(latest) { node.textContent = Math.round(latest).toLocaleString('id-ID'); }
+    });
+    return () => controls.stop();
+  }, [value]);
+  return <span ref={nodeRef}>0</span>;
+}
+
+const pageVariants = {
+  initial: { opacity: 0, y: 10, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: "easeOut" } },
+  exit: { opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.2 } }
+};
+
+// -- Charts --
+const ClaimTrendsChart = () => (
+  <ResponsiveContainer width="100%" height="100%">
+    <LineChart data={claimTrendsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} stroke="currentColor" />
+      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
+      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+      <Tooltip 
+        contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }}
+        itemStyle={{ color: '#334155', fontSize: '12px', fontWeight: '600' }}
+      />
+      <Line type="monotone" dataKey="claims" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
+      <Line type="monotone" dataKey="anomalies" stroke="#10b981" strokeWidth={3} dot={false} activeDot={{ r: 6, strokeWidth: 0 }} />
+    </LineChart>
+  </ResponsiveContainer>
+);
+
+const AnomalyDetectionChart = () => (
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={anomalyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} stroke="currentColor" />
+      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
+      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+      <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
+      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+        {anomalyData.map((entry, index) => (
+           <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+        ))}
+      </Bar>
+    </BarChart>
+  </ResponsiveContainer>
+);
