@@ -17,13 +17,11 @@ import {
   Sun, 
   Moon, 
   Menu,
-  X,           
-  LogOut,      
-  User,        
-  ChevronRight, 
-  CheckCircle2,
-  RefreshCw,
-  FileSpreadsheet // Ikon baru untuk Excel
+  X,           // Ikon Close untuk Mobile
+  LogOut,      // Ikon Logout
+  User,        // Ikon User Profile
+  ChevronRight, // Ikon Panah
+  CheckCircle2
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -31,9 +29,9 @@ import {
   BarChart, 
   Line, 
   Bar, 
-  PieChart, 
-  Pie,      
-  Cell,     
+  PieChart, // Chart Baru
+  Pie,      // Chart Baru
+  Cell,     // Chart Baru
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -46,55 +44,27 @@ import {
   animate 
 } from 'framer-motion';
 
-// -- API CONFIGURATION --
-const API_BASE_URL = 'http://localhost:5000/api';
+// -- Data Mock --
+const claimTrendsData = [
+  { name: 'Jan', claims: 4000, anomalies: 240 },
+  { name: 'Feb', claims: 3000, anomalies: 139 },
+  { name: 'Mar', claims: 2000, anomalies: 980 },
+  { name: 'Apr', claims: 2780, anomalies: 390 },
+  { name: 'Mei', claims: 1890, anomalies: 480 },
+  { name: 'Jun', claims: 2390, anomalies: 380 },
+  { name: 'Jul', claims: 3490, anomalies: 430 },
+];
+
+const anomalyData = [
+  { name: 'Upcoding', value: 400 },
+  { name: 'Fiktif', value: 300 },
+  { name: 'Duplikat', value: 300 },
+  { name: 'Unbundling', value: 200 },
+  { name: 'Lainnya', value: 100 },
+];
 
 // Warna untuk Pie Chart
 const PIE_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
-
-// -- Helper untuk Fetching Data --
-const useFetch = (endpoint, initialData = null) => {
-  const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      
-      const token = localStorage.getItem('token') || 'dev-token-12345';
-
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Unauthorized: Please login or check API token');
-        }
-        throw new Error(`API Error: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      console.warn(`Failed to fetch ${endpoint}:`, err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [endpoint]);
-
-  return { data, loading, error, refetch: fetchData };
-};
 
 // -- Komponen Utama Aplikasi --
 export default function App() {
@@ -103,10 +73,12 @@ export default function App() {
     return savedTheme ? savedTheme : 'light';
   });
 
+  // Responsiveness Logic
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
-  const [isLoadingPage, setIsLoadingPage] = useState(false);
-  const [page, setPage] = useState('dashboard');
+
+  // Loading Simulation State
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -119,6 +91,7 @@ export default function App() {
       }
     };
     
+    // Initial check
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -134,19 +107,31 @@ export default function App() {
     }
   }, [theme]);
 
-  const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-  const toggleSidebar = () => setIsSidebarOpen(prev => !prev);
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(prev => !prev);
+  };
+
+  const [page, setPage] = useState('dashboard');
+  
+  // Simulasi Loading saat ganti halaman
   const handlePageChange = (newPage) => {
     if (newPage === page) return;
-    setIsLoadingPage(true);
+    setIsLoading(true);
     setPage(newPage);
+    // Jika mobile, tutup sidebar setelah klik
     if (isMobile) setIsSidebarOpen(false);
-    setTimeout(() => setIsLoadingPage(false), 600);
+    
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 600); // 600ms loading simulation
   };
 
   const renderPage = () => {
-    if (isLoadingPage) return <LoadingSkeleton key="loading" />;
+    if (isLoading) return <LoadingSkeleton key="loading" />;
     
     switch(page) {
       case 'dashboard': return <DashboardPage key="dashboard" />;
@@ -161,8 +146,11 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-slate-300 font-sans transition-colors duration-300 overflow-hidden relative">
-      <BackgroundBlobs />
       
+      {/* 1. Ambient Background Blobs (KUNCI GLASSMORPHISM) */}
+      <BackgroundBlobs />
+
+      {/* 2. Mobile Overlay (Backdrop hitam saat sidebar buka di HP) */}
       {isMobile && isSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
@@ -178,8 +166,10 @@ export default function App() {
         isMobile={isMobile}
       />
       
+      {/* Main Content Wrapper */}
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative z-10 ${!isMobile && isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <Header theme={theme} toggleTheme={toggleTheme} toggleSidebar={toggleSidebar} />
+        
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto scroll-smooth">
           <AnimatePresence mode="wait">
             {renderPage()}
@@ -190,15 +180,19 @@ export default function App() {
   );
 }
 
-// -- Visual Components --
+// -- Komponen Visual Ambient Background --
 const BackgroundBlobs = () => (
   <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+    {/* Blob Hijau/Emerald (Kiri Atas) */}
     <div className="absolute -top-20 -left-20 w-96 h-96 bg-emerald-400/20 dark:bg-emerald-600/10 rounded-full blur-3xl animate-pulse" />
+    {/* Blob Biru (Kanan Bawah) */}
     <div className="absolute -bottom-20 -right-20 w-[500px] h-[500px] bg-blue-400/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-pulse delay-700" />
+    {/* Blob Ungu (Tengah Bergerak) */}
     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-bounce duration-[10s]" />
   </div>
 );
 
+// -- Skeleton Loader Component --
 const LoadingSkeleton = () => (
   <motion.div 
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -230,17 +224,20 @@ const Sidebar = ({ activePage, setPage, isSidebarOpen, toggleSidebar, isMobile }
                    shadow-2xl lg:shadow-none
                    transition-transform duration-300 ease-in-out 
                    ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      
       <div className="flex items-center justify-between mb-10">
         <div className="flex items-center space-x-2">
            <ShieldCheck className="text-emerald-500 drop-shadow-md" size={28} />
            <h3 className="text-2xl font-bold text-gray-700 dark:text-slate-200 tracking-tight">SATRIA JKN</h3>
         </div>
+        {/* Tombol Close di Mobile */}
         {isMobile && (
           <button onClick={toggleSidebar} className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
             <X size={20} />
           </button>
         )}
       </div>
+
       <nav className="flex flex-col space-y-2">
         {navItems.map((item) => (
           <NavItem
@@ -252,12 +249,16 @@ const Sidebar = ({ activePage, setPage, isSidebarOpen, toggleSidebar, isMobile }
           />
         ))}
       </nav>
+
+      {/* Footer Sidebar */}
       <div className="mt-auto pt-6 border-t border-gray-200/50 dark:border-gray-700/50">
           <div className="flex items-center space-x-3 p-3 bg-emerald-50/50 dark:bg-emerald-900/20 rounded-xl">
-             <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">SJ</div>
+             <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+               SJ
+             </div>
              <div>
                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">BPJS Kesehatan</p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">Connected to API</p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">Ver. 2.5.0 (Beta)</p>
              </div>
           </div>
       </div>
@@ -265,19 +266,20 @@ const Sidebar = ({ activePage, setPage, isSidebarOpen, toggleSidebar, isMobile }
   );
 };
 
-// -- Header --
+// -- Header dengan Dropdown --
 const Header = ({ theme, toggleTheme, toggleSidebar }) => {
-  const { data: notifications } = useFetch('/alerts?risk_level=High', []); 
-
   return (
     <header className="flex-shrink-0 p-4 lg:px-8 lg:py-5 relative z-20 
                    bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl 
                    border-b border-white/40 dark:border-slate-700/40 sticky top-0">
       <div className="flex justify-between items-center space-x-4">
+        
         <div className="flex items-center flex-1 min-w-0 gap-4"> 
           <GlassButton onClick={toggleSidebar} className="lg:hidden">
             <Menu size={20} />
           </GlassButton>
+
+          {/* Search Bar Glass */}
           <div className="hidden md:flex items-center w-full max-w-md rounded-full 
                         bg-white/40 dark:bg-slate-800/40 
                         border border-white/50 dark:border-slate-600/30
@@ -286,16 +288,21 @@ const Header = ({ theme, toggleTheme, toggleSidebar }) => {
             <Search className="text-gray-400 dark:text-slate-500" size={18} />
             <input
               type="text"
-              placeholder="Search Claims ID, Provider..."
+              placeholder="Search Claims, Providers..."
               className="bg-transparent ml-3 w-full outline-none placeholder-gray-400 dark:placeholder-slate-500 text-gray-700 dark:text-slate-200 text-sm"
             />
           </div>
         </div>
+        
         <div className="flex items-center space-x-3">
           <GlassButton onClick={toggleTheme}>
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </GlassButton>
-          <NotificationDropdown notifications={notifications} />
+          
+          {/* Notification Dropdown */}
+          <NotificationDropdown />
+          
+          {/* Profile Dropdown */}
           <ProfileDropdown />
         </div>
       </div>
@@ -303,17 +310,138 @@ const Header = ({ theme, toggleTheme, toggleSidebar }) => {
   );
 };
 
-// -- Dashboard Page (Integrated) --
-const DashboardPage = () => {
-  const { data: stats, loading: loadingStats } = useFetch('/dashboard/overview', { 
-    total_claims: 0, 
-    detected_anomalies: 0, 
-    potential_savings: 0, 
-    pending_reviews: 0 
-  });
+// -- Dropdown Components (NEW) --
 
-  const { data: trends } = useFetch('/dashboard/trends', []);
-  const { data: recentAlerts } = useFetch('/alerts?risk_level=High', []);
+const NotificationDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <GlassButton onClick={() => setIsOpen(!isOpen)} className="relative">
+        <Bell size={18} />
+        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+      </GlassButton>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-3 w-80 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 overflow-hidden"
+          >
+            <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+              <h5 className="font-semibold text-sm dark:text-white">Notifications</h5>
+              <span className="text-xs text-emerald-500 font-medium cursor-pointer">Mark all read</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {[1, 2, 3].map((_, i) => (
+                <div key={i} className="p-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors border-b border-gray-50 dark:border-slate-700/50 last:border-0 flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-800 dark:text-slate-200">High Risk Anomaly Detected</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Claim ID #49201 - Upcoding potential</p>
+                    <p className="text-[10px] text-gray-400 mt-1">2 mins ago</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-3 bg-gray-50 dark:bg-slate-800/50 text-center border-t border-gray-100 dark:border-slate-700">
+              <button className="text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-500 transition-colors">View All Alerts</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const ProfileDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <GlassButton onClick={() => setIsOpen(!isOpen)}>
+        <UserCircle size={18} />
+      </GlassButton>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 mt-3 w-64 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 p-2"
+          >
+            <div className="flex items-center p-3 mb-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                A
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-bold text-gray-800 dark:text-white">Admin Verifikator</p>
+                <p className="text-xs text-gray-500 dark:text-emerald-300">admin@bpjs.go.id</p>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <MenuItem icon={User} label="Profile Settings" />
+              <MenuItem icon={Settings} label="Preferences" />
+              <div className="h-px bg-gray-200 dark:bg-slate-700 my-1"></div>
+              <MenuItem icon={LogOut} label="Sign Out" danger />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const MenuItem = ({ icon: Icon, label, danger }) => (
+  <button className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors
+    ${danger 
+      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' 
+      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+    }`}>
+    <Icon size={16} />
+    <span>{label}</span>
+    {!danger && <ChevronRight size={14} className="ml-auto opacity-50" />}
+  </button>
+);
+
+// -- Dashboard Page --
+const DashboardPage = () => {
+  const recentAlerts = [
+    { id: '001', type: 'Upcoding', date: '2025-11-10', status: 'High Risk' },
+    { id: '002', type: 'Fiktif', date: '2025-11-09', status: 'Resolved' },
+    { id: '003', type: 'Duplikat', date: '2025-11-08', status: 'Medium Risk' },
+  ];
 
   return (
     <motion.div 
@@ -323,21 +451,23 @@ const DashboardPage = () => {
       <div className="flex justify-between items-end">
         <div>
           <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100 tracking-tight">Dashboard Overview</h4>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Real-time data from Fraud Detection System.</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Welcome back, Verifikator. Here's what's happening today.</p>
         </div>
         <div className="hidden md:block">
            <AppButton>Download Report</AppButton>
         </div>
       </div>
       
+      {/* Grid Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Claims" value={loadingStats ? 0 : stats?.total_claims} unit="" Icon={TrendingUp} gradient="from-blue-500 to-blue-600" />
-        <StatCard title="Anomalies Detected" value={loadingStats ? 0 : stats?.detected_anomalies} prefix="" Icon={AlertOctagon} gradient="from-red-500 to-red-600" />
-        <StatCard title="Potential Savings" value={loadingStats ? 0 : stats?.potential_savings} unit="M" prefix="Rp " Icon={DollarSign} gradient="from-emerald-500 to-emerald-600" />
-        <StatCard title="Pending Review" value={loadingStats ? 0 : stats?.pending_reviews} Icon={FileSearch} gradient="from-amber-500 to-amber-600" />
+        <StatCard title="Total Claims" value={300} unit="M" Icon={TrendingUp} gradient="from-blue-500 to-blue-600" />
+        <StatCard title="Anomalies" value={2450} prefix="" Icon={AlertOctagon} gradient="from-red-500 to-red-600" />
+        <StatCard title="Fraud Savings" value="Rp12" unit="B" Icon={DollarSign} gradient="from-emerald-500 to-emerald-600" />
+        <StatCard title="Pending Review" value={120} Icon={FileSearch} gradient="from-amber-500 to-amber-600" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[400px]">
+         {/* Grafik Utama - Takes 2 cols */}
          <div className="lg:col-span-2 h-full">
             <SoftCard className="h-full flex flex-col">
               <div className="flex justify-between items-center mb-4">
@@ -348,40 +478,38 @@ const DashboardPage = () => {
                  </div>
               </div>
               <div className="flex-1 min-h-0">
-                {trends && trends.length > 0 ? (
-                  <ClaimTrendsChart data={trends} />
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-400">
-                    {loadingStats ? "Loading chart..." : "No trend data available"}
-                  </div>
-                )}
+                <ClaimTrendsChart />
               </div>
             </SoftCard>
          </div>
 
+         {/* Ringkasan Cepat / Progress - Takes 1 col */}
          <div className="h-full">
             <SoftCard className="h-full flex flex-col relative overflow-hidden">
-              <h5 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-6">System Health</h5>
+              <h5 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-6">System Status</h5>
               <div className="space-y-6 relative z-10">
-                 <ProgressItem label="API Connection" percent={100} color="bg-emerald-500" />
-                 <ProgressItem label="Model Confidence" percent={92.5} color="bg-blue-500" />
-                 <ProgressItem label="Database Latency" percent={15} color="bg-purple-500" />
+                 <ProgressItem label="Server Uptime" percent={99.9} color="bg-emerald-500" />
+                 <ProgressItem label="AI Model Accuracy" percent={94.2} color="bg-blue-500" />
+                 <ProgressItem label="Database Load" percent={45} color="bg-purple-500" />
+                 <ProgressItem label="Verification Speed" percent={88} color="bg-amber-500" />
               </div>
+              {/* Dekorasi background card */}
               <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-xl"></div>
             </SoftCard>
          </div>
       </div>
 
+      {/* Recent Alerts Table */}
       <div>
-        <h4 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-4">Recent High Priority Alerts</h4>
+        <h4 className="text-lg font-bold text-gray-700 dark:text-slate-200 mb-4">High Priority Alerts</h4>
         <TableCard
-          headers={['ID', 'Type', 'Date', 'Risk', 'Action']}
-          data={(recentAlerts || []).slice(0, 5).map(alert => [
-            <span className="font-mono text-gray-500">{alert.id.substring(0,8)}...</span>, 
+          headers={['ID', 'Type', 'Date', 'Status', 'Action']}
+          data={recentAlerts.map(alert => [
+            <span className="font-mono text-gray-500">{alert.id}</span>, 
             <span className="font-medium text-gray-700 dark:text-gray-200">{alert.type}</span>, 
-            alert.date?.split(' ')[0] || 'N/A', 
-            <StatusBadge status={alert.risk_level || 'High Risk'} />,
-            <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Investigate</button>
+            alert.date, 
+            <StatusBadge status={alert.status} />,
+            <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium">Review</button>
           ])}
         />
       </div>
@@ -389,13 +517,8 @@ const DashboardPage = () => {
   );
 };
 
-// -- Analysis Page (Integrated) --
+// -- Analysis Page dengan PIE CHART Baru --
 const ClaimAnalysisPage = () => {
-  const { data: anomalyChartData } = useFetch('/klaim/anomaly-chart', []);
-  const { data: claims, loading } = useFetch('/klaim', []);
-
-  const pieData = anomalyChartData?.distribution || [];
-
   return (
     <motion.div 
       className="space-y-6"
@@ -405,25 +528,28 @@ const ClaimAnalysisPage = () => {
         <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Claim Analysis</h4>
         <div className="flex gap-2">
            <FilterButton label="Last 30 Days" />
-           <FilterButton label="Filter Status" />
+           <FilterButton label="Hospital" />
         </div>
       </div>
 
+      {/* Dual Chart Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[350px]">
+         {/* Chart 1: Bar Anomaly */}
          <SoftCard className="h-full flex flex-col">
-            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Anomaly Distribution</h5>
+            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Anomaly Count by Type</h5>
             <div className="flex-1 min-h-0">
-               <AnomalyDetectionChart data={pieData} />
+               <AnomalyDetectionChart />
             </div>
          </SoftCard>
          
+         {/* Chart 2: Pie Distribution (NEW) */}
          <SoftCard className="h-full flex flex-col">
-            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Fraud Composition</h5>
+            <h5 className="text-lg font-semibold text-gray-700 dark:text-slate-200 mb-2">Fraud Distribution</h5>
             <div className="flex-1 min-h-0 flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={pieData}
+                      data={anomalyData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
@@ -431,7 +557,7 @@ const ClaimAnalysisPage = () => {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {pieData.map((entry, index) => (
+                      {anomalyData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                       ))}
                     </Pie>
@@ -444,198 +570,29 @@ const ClaimAnalysisPage = () => {
       </div>
 
       <SoftCard className="p-0 overflow-hidden">
-         <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between">
-            <h5 className="font-semibold dark:text-white">Claims Data</h5>
-            {loading && <span className="text-sm text-gray-500 animate-pulse">Loading data...</span>}
-         </div>
-         <TableCard 
-            noCard 
-            headers={['Claim No', 'Provider', 'Date', 'Amount', 'Status']} 
-            data={(claims || []).map(c => [
-               c.nomor_klaim,
-               c.provider,
-               c.tanggal?.split(' ')[0] || 'N/A',
-               `Rp ${parseInt(c.total_biaya).toLocaleString()}`,
-               <StatusBadge status={c.status} />
-            ])}
-         />
-      </SoftCard>
-    </motion.div>
-  );
-};
-
-// -- Alerts Page (Integrated) --
-const AlertsPage = () => {
-  const { data: alerts, loading } = useFetch('/alerts', []);
-  const { data: summary } = useFetch('/alerts/summary', { High: 0, Medium: 0, Low: 0 });
-
-  return (
-    <motion.div 
-      className="space-y-6"
-      variants={pageVariants} initial="initial" animate="animate" exit="exit"
-    >
-      <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Fraud Alerts Management</h4>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="High Risk" value={summary?.High || 0} prefix="" Icon={AlertTriangle} gradient="from-red-500 to-red-600" />
-        <StatCard title="Medium Risk" value={summary?.Medium || 0} prefix="" Icon={AlertTriangle} gradient="from-amber-500 to-amber-600" />
-        <StatCard title="Low Risk" value={summary?.Low || 0} prefix="" Icon={AlertCircle} gradient="from-blue-500 to-blue-600" />
-      </div>
-
-      <SoftCard className="p-0 overflow-hidden">
          <div className="p-4 border-b border-gray-100 dark:border-slate-700">
-            <h5 className="font-semibold dark:text-white">All Alerts</h5>
+            <h5 className="font-semibold dark:text-white">Deep Dive Data</h5>
          </div>
          <TableCard 
             noCard 
-            headers={['Alert ID', 'Type', 'Risk Level', 'Date', 'Action']} 
-            data={(alerts || []).map(a => [
-               a.id.substring(0,8),
-               a.type,
-               <StatusBadge status={a.risk_level} />,
-               a.date?.split(' ')[0],
-               <div className="flex gap-2">
-                  <button className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Resolve</button>
-                  <button className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Flag</button>
-               </div>
-            ])}
+            headers={['Claim ID', 'Provider', 'Date', 'Amount', 'Risk Score']} 
+            data={[
+               ['CL-992', 'RSUD Cengkareng', '2025-11-10', 'Rp 45.000.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-red-500 h-2 rounded-full" style={{width: '85%'}}></div></div>],
+               ['CL-993', 'Klinik Sehat', '2025-11-09', 'Rp 1.200.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-yellow-500 h-2 rounded-full" style={{width: '45%'}}></div></div>],
+               ['CL-994', 'RS Harapan', '2025-11-08', 'Rp 12.500.000', <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-green-500 h-2 rounded-full" style={{width: '15%'}}></div></div>],
+            ]}
          />
-         {loading && <div className="p-4 text-center text-gray-500">Loading alerts...</div>}
       </SoftCard>
     </motion.div>
   );
 };
 
-// -- Audit Trail Page (Integrated) --
-const AuditTrailPage = () => {
-  const { data: logs, loading } = useFetch('/audit-trail', []);
+// Placeholder pages
+const AlertsPage = () => <PlaceholderPage title="Alerts Management" icon={AlertTriangle} />;
+const AuditTrailPage = () => <PlaceholderPage title="System Audit Logs" icon={History} />;
+const ReportsPage = () => <PlaceholderPage title="Generated Reports" icon={FileText} />;
 
-  return (
-    <motion.div 
-      className="space-y-6"
-      variants={pageVariants} initial="initial" animate="animate" exit="exit"
-    >
-      <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100">System Audit Logs</h4>
-      <SoftCard className="p-0 overflow-hidden">
-         <TableCard 
-            noCard 
-            headers={['Timestamp', 'User', 'Action', 'Entity', 'Details']} 
-            data={(logs || []).map(log => [
-               log.timestamp,
-               log.user,
-               <span className="font-semibold">{log.action}</span>,
-               log.entity,
-               log.details
-            ])}
-         />
-         {loading && <div className="p-4 text-center text-gray-500">Fetching logs...</div>}
-      </SoftCard>
-    </motion.div>
-  );
-};
-
-// -- Reports Page (Updated for Download) --
-const ReportsPage = () => {
-  const { data: reports, loading, refetch } = useFetch('/reports', []);
-  const [generating, setGenerating] = useState(false);
-
-  // Fungsi download fisik
-  const handleDownload = async (reportId, format) => {
-    try {
-        const token = localStorage.getItem('token') || 'dev-token-12345';
-        const response = await fetch(`${API_BASE_URL}/reports/${reportId}/download?format=${format}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error("Download failed");
-        
-        // Convert to Blob and Trigger Download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Report-${reportId}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    } catch (e) {
-        console.error(e);
-        alert("Gagal mengunduh laporan. Pastikan backend berjalan.");
-    }
-  };
-
-  // Fungsi Generate Report Baru
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      const token = localStorage.getItem('token') || 'dev-token-12345';
-      const response = await fetch(`${API_BASE_URL}/reports/generate`, {
-          method: 'POST',
-          headers: { 
-             'Content-Type': 'application/json',
-             'Authorization': `Bearer ${token}` 
-          },
-          body: JSON.stringify({ type: 'Fraud Summary' }) // Default type
-      });
-      if(response.ok) {
-         refetch(); // Refresh list
-      }
-    } catch(e) {
-       console.error("Generate failed", e);
-    } finally {
-       setGenerating(false);
-    }
-  };
-
-  return (
-    <motion.div 
-      className="space-y-6"
-      variants={pageVariants} initial="initial" animate="animate" exit="exit"
-    >
-      <div className="flex justify-between items-center">
-         <h4 className="text-2xl font-bold text-gray-800 dark:text-slate-100">Generated Reports</h4>
-         <AppButton onClick={handleGenerate} disabled={generating}>
-            {generating ? 'Generating...' : 'Generate New Report'}
-         </AppButton>
-      </div>
-
-      <SoftCard className="p-0 overflow-hidden">
-         <TableCard 
-            noCard 
-            headers={['Report ID', 'Name', 'Generated Date', 'Status', 'Actions']} 
-            data={(reports || []).map(r => [
-               r.id,
-               r.name,
-               r.date,
-               <StatusBadge status={r.status || 'Ready'} />,
-               <div className="flex gap-2">
-                  <button 
-                    onClick={() => handleDownload(r.id, 'pdf')}
-                    className="flex items-center text-xs bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors font-medium border border-red-200"
-                  >
-                    <FileText size={14} className="mr-1"/> PDF
-                  </button>
-                  <button 
-                    onClick={() => handleDownload(r.id, 'xlsx')}
-                    className="flex items-center text-xs bg-emerald-50 text-emerald-600 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition-colors font-medium border border-emerald-200"
-                  >
-                    <FileSpreadsheet size={14} className="mr-1"/> Excel
-                  </button>
-               </div>
-            ])}
-         />
-         {loading && <div className="p-4 text-center text-gray-500">Loading reports...</div>}
-      </SoftCard>
-    </motion.div>
-  );
-};
-
-// -- Settings Page (Integrated) --
-const SettingsPage = ({ theme, toggleTheme }) => {
-  const { data: settings } = useFetch('/settings', { system_name: 'SATRIA JKN', version: '1.0.0' });
-
-  return (
+const SettingsPage = ({ theme, toggleTheme }) => (
    <motion.div 
       variants={pageVariants} initial="initial" animate="animate" exit="exit"
       className="max-w-2xl"
@@ -655,9 +612,8 @@ const SettingsPage = ({ theme, toggleTheme }) => {
          </div>
          
          <div className="space-y-4">
-            <SoftInput label="System Name" value={settings?.system_name} readOnly />
-            <SoftInput label="API Version" value={settings?.version} readOnly />
-            <SoftInput label="API Endpoint" value={API_BASE_URL} readOnly />
+            <SoftInput label="System Name" value="SATRIA JKN - Fraud Detection System" readOnly />
+            <SoftInput label="API Endpoint" value="https://api.bpjs-kesehatan.go.id/v2/fraud" readOnly />
          </div>
 
          <div className="pt-4">
@@ -665,12 +621,24 @@ const SettingsPage = ({ theme, toggleTheme }) => {
          </div>
       </SoftCard>
    </motion.div>
-  );
-};
+);
 
 // -- Helper Components --
 
-const AlertCircle = (props) => <AlertOctagon {...props} />; // Fallback icon
+const PlaceholderPage = ({ title, icon: Icon }) => (
+   <motion.div 
+      variants={pageVariants} initial="initial" animate="animate" exit="exit"
+      className="flex flex-col items-center justify-center h-[60vh] text-center"
+   >
+      <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 animate-pulse">
+         <Icon size={40} className="text-slate-400" />
+      </div>
+      <h2 className="text-xl font-bold text-gray-700 dark:text-slate-200">{title}</h2>
+      <p className="text-gray-500 dark:text-slate-400 mt-2 max-w-md">
+         This module is currently being connected to the live database. Please check back later.
+      </p>
+   </motion.div>
+);
 
 const ProgressItem = ({ label, percent, color }) => (
   <div>
@@ -703,14 +671,14 @@ const NavItem = ({ Icon, label, isActive, onClick }) => {
   );
 };
 
-const AppButton = ({ children, onClick, flat = false, size = 'md', className = '', disabled }) => {
-  const baseStyle = "rounded-xl font-semibold transition-all duration-200 flex items-center justify-center active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+const AppButton = ({ children, onClick, flat = false, size = 'md', className = '' }) => {
+  const baseStyle = "rounded-xl font-semibold transition-all duration-200 flex items-center justify-center active:scale-95";
   const styles = flat 
     ? "bg-transparent border border-slate-200 dark:border-slate-600 text-gray-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800" 
     : "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:-translate-y-0.5";
   
   return (
-    <button onClick={onClick} disabled={disabled} className={`${baseStyle} ${styles} px-5 py-2.5 text-sm ${className}`}>
+    <button onClick={onClick} className={`${baseStyle} ${styles} px-5 py-2.5 text-sm ${className}`}>
       {children}
     </button>
   );
@@ -761,6 +729,7 @@ const StatCard = ({ title, value, unit, prefix, Icon, gradient }) => {
            <Icon size={24} />
         </div>
       </div>
+      {/* Decorative Background glow based on gradient */}
       <div className={`absolute -right-6 -bottom-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity bg-gradient-to-br ${gradient}`}></div>
     </SoftCard>
   );
@@ -805,7 +774,7 @@ const TableCard = ({ headers, data, noCard = false }) => {
           </tr>
         </thead>
         <tbody>
-          {data && data.length > 0 ? data.map((row, rowIndex) => (
+          {data.map((row, rowIndex) => (
             <motion.tr 
               key={rowIndex} 
               initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: rowIndex * 0.05 }}
@@ -817,9 +786,7 @@ const TableCard = ({ headers, data, noCard = false }) => {
                 </td>
               ))}
             </motion.tr>
-          )) : (
-             <tr><td colSpan={headers.length} className="p-8 text-center text-gray-400 italic">No data available</td></tr>
-          )}
+          ))}
         </tbody>
       </table>
     </div>
@@ -828,149 +795,23 @@ const TableCard = ({ headers, data, noCard = false }) => {
 };
 
 const StatusBadge = ({ status }) => {
-  const safeStatus = status || 'Unknown';
   const styles = {
     'High Risk': 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
-    'High': 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
     'Resolved': 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
     'Medium Risk': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-    'Medium': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
     'Anomalous': 'bg-orange-100 text-orange-700 border-orange-200',
-    'Low': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Normal': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
-    'Pending': 'bg-gray-100 text-gray-700 border-gray-200',
-    'Ready': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'Normal': 'bg-blue-100 text-blue-700 border-blue-200',
   };
   
   return (
-    <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${styles[safeStatus] || 'bg-gray-100 text-gray-600'} flex items-center w-fit gap-1.5`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${safeStatus.includes('High') ? 'bg-red-500 animate-pulse' : 'bg-current'}`}></span>
-      {safeStatus}
+    <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${styles[status] || 'bg-gray-100'} flex items-center w-fit gap-1.5`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${status.includes('High') ? 'bg-red-500 animate-pulse' : 'bg-current'}`}></span>
+      {status}
     </span>
   );
 };
 
-const NotificationDropdown = ({ notifications = [] }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const displayNotifs = notifications?.slice(0, 5) || [];
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <GlassButton onClick={() => setIsOpen(!isOpen)} className="relative">
-        <Bell size={18} />
-        {displayNotifs.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>}
-      </GlassButton>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-3 w-80 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 overflow-hidden"
-          >
-            <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
-              <h5 className="font-semibold text-sm dark:text-white">Notifications</h5>
-              <span className="text-xs text-emerald-500 font-medium cursor-pointer">Mark all read</span>
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {displayNotifs.length > 0 ? displayNotifs.map((n, i) => (
-                <div key={i} className="p-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors border-b border-gray-50 dark:border-slate-700/50 last:border-0 flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle size={14} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-gray-800 dark:text-slate-200">{n.type || 'Fraud Alert'}</p>
-                    <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Risk: {n.risk_level}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{n.date}</p>
-                  </div>
-                </div>
-              )) : <div className="p-4 text-center text-xs text-gray-500">No new notifications</div>}
-            </div>
-            <div className="p-3 bg-gray-50 dark:bg-slate-800/50 text-center border-t border-gray-100 dark:border-slate-700">
-              <button className="text-xs font-medium text-gray-600 dark:text-slate-300 hover:text-emerald-500 transition-colors">View All Alerts</button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const ProfileDropdown = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <GlassButton onClick={() => setIsOpen(!isOpen)}>
-        <UserCircle size={18} />
-      </GlassButton>
-
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-3 w-64 bg-white/90 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700 z-50 p-2"
-          >
-            <div className="flex items-center p-3 mb-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">A</div>
-              <div className="ml-3">
-                <p className="text-sm font-bold text-gray-800 dark:text-white">Admin Verifikator</p>
-                <p className="text-xs text-gray-500 dark:text-emerald-300">admin@bpjs.go.id</p>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <MenuItem icon={User} label="Profile Settings" />
-              <MenuItem icon={Settings} label="Preferences" />
-              <div className="h-px bg-gray-200 dark:bg-slate-700 my-1"></div>
-              <MenuItem icon={LogOut} label="Sign Out" danger />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-const MenuItem = ({ icon: Icon, label, danger }) => (
-  <button className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors
-    ${danger 
-      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' 
-      : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-    }`}>
-    <Icon size={16} />
-    <span>{label}</span>
-    {!danger && <ChevronRight size={14} className="ml-auto opacity-50" />}
-  </button>
-);
-
+// -- Animation Components --
 function AnimatedNumber({ value }) {
   const nodeRef = useRef(null);
   useEffect(() => {
@@ -991,9 +832,10 @@ const pageVariants = {
   exit: { opacity: 0, y: -10, scale: 0.98, transition: { duration: 0.2 } }
 };
 
-const ClaimTrendsChart = ({ data }) => (
+// -- Charts --
+const ClaimTrendsChart = () => (
   <ResponsiveContainer width="100%" height="100%">
-    <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+    <LineChart data={claimTrendsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} stroke="currentColor" />
       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} dy={10} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -1007,15 +849,15 @@ const ClaimTrendsChart = ({ data }) => (
   </ResponsiveContainer>
 );
 
-const AnomalyDetectionChart = ({ data }) => (
+const AnomalyDetectionChart = () => (
   <ResponsiveContainer width="100%" height="100%">
-    <BarChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+    <BarChart data={anomalyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
       <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} stroke="currentColor" />
       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} dy={10} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
       <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)' }} />
       <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-        {data && data.map((entry, index) => (
+        {anomalyData.map((entry, index) => (
            <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
         ))}
       </Bar>
