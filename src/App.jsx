@@ -103,6 +103,12 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [isLoadingPage, setIsLoadingPage] = useState(false);
   const [page, setPage] = useState("dashboard");
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem("token");
+  });
+  const [username, setUsername] = useState(() => {
+    return localStorage.getItem("username") || "";
+  });
 
   useEffect(() => {
     const handleResize = () => {
@@ -133,6 +139,21 @@ export default function App() {
   const toggleTheme = () =>
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  const handleLogin = (token, user) => {
+    localStorage.setItem("token", token);
+    localStorage.setItem("username", user.username);
+    setIsAuthenticated(true);
+    setUsername(user.username);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
+    setIsAuthenticated(false);
+    setUsername("");
+    setPage("dashboard");
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage === page) return;
@@ -169,6 +190,20 @@ export default function App() {
     }
   };
 
+  // Jika belum login, tampilkan halaman login
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-slate-300 font-sans transition-colors duration-300 overflow-hidden relative">
+        <BackgroundBlobs />
+        <LoginPage
+          onLogin={handleLogin}
+          theme={theme}
+          toggleTheme={toggleTheme}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 text-gray-800 dark:text-slate-300 font-sans transition-colors duration-300 overflow-hidden relative">
       <BackgroundBlobs />
@@ -197,6 +232,8 @@ export default function App() {
           theme={theme}
           toggleTheme={toggleTheme}
           toggleSidebar={toggleSidebar}
+          username={username}
+          onLogout={handleLogout}
         />
         <main className="flex-1 p-4 lg:p-8 overflow-y-auto scroll-smooth">
           <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
@@ -308,7 +345,7 @@ const Sidebar = ({
 };
 
 // -- Header --
-const Header = ({ theme, toggleTheme, toggleSidebar }) => {
+const Header = ({ theme, toggleTheme, toggleSidebar, username, onLogout }) => {
   const { data: stats } = useFetch("/dashboard/overview", {
     recent_alerts: [],
   });
@@ -345,7 +382,7 @@ const Header = ({ theme, toggleTheme, toggleSidebar }) => {
             {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
           </GlassButton>
           <NotificationDropdown notifications={notifications} />
-          <ProfileDropdown />
+          <ProfileDropdown username={username} onLogout={onLogout} />
         </div>
       </div>
     </header>
@@ -1005,6 +1042,150 @@ const SettingsPage = ({ theme, toggleTheme }) => {
   );
 };
 
+// -- Login Page --
+const LoginPage = ({ onLogin, theme, toggleTheme }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login gagal");
+      }
+
+      if (data.token && data.user) {
+        onLogin(data.token, data.user);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      setError(err.message || "Terjadi kesalahan saat login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex items-center justify-center p-4 relative z-10">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <SoftCard className="p-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center space-x-3">
+              <ShieldCheck
+                className="text-emerald-500 drop-shadow-md"
+                size={32}
+              />
+              <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-100">
+                SATRIA JKN
+              </h1>
+            </div>
+            <GlassButton onClick={toggleTheme}>
+              {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+            </GlassButton>
+          </div>
+
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-700 dark:text-slate-200">
+              Selamat Datang
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+              Silakan login untuk mengakses sistem fraud detection
+            </p>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+            >
+              <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                <AlertTriangle size={16} />
+                {error}
+              </p>
+            </motion.div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Username
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 dark:text-slate-200 transition-all"
+                placeholder="Masukkan username"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white/40 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-gray-700 dark:text-slate-200 transition-all"
+                placeholder="Masukkan password"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-6 px-4 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw size={18} className="animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={18} />
+                  Login
+                </>
+              )}
+            </button>
+          </form>
+        </SoftCard>
+
+        <p className="text-center text-xs text-gray-500 dark:text-slate-400 mt-4">
+          © 2024 BPJS Kesehatan - Fraud Detection System
+        </p>
+      </motion.div>
+    </div>
+  );
+};
+
 // -- Helper Components --
 
 const AlertCircle = (props) => <AlertOctagon {...props} />; // Fallback icon
@@ -1352,7 +1533,7 @@ const NotificationDropdown = ({ notifications = [] }) => {
   );
 };
 
-const ProfileDropdown = () => {
+const ProfileDropdown = ({ username, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -1365,6 +1546,11 @@ const ProfileDropdown = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLogoutClick = () => {
+    setIsOpen(false);
+    onLogout();
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -1383,14 +1569,14 @@ const ProfileDropdown = () => {
           >
             <div className="flex items-center p-3 mb-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
               <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                A
+                {username ? username.charAt(0).toUpperCase() : "U"}
               </div>
               <div className="ml-3">
                 <p className="text-sm font-bold text-gray-800 dark:text-white">
-                  Admin Verifikator
+                  {username || "User"}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-emerald-300">
-                  admin@bpjs.go.id
+                  BPJS Kesehatan
                 </p>
               </div>
             </div>
@@ -1398,7 +1584,12 @@ const ProfileDropdown = () => {
               <MenuItem icon={User} label="Profile Settings" />
               <MenuItem icon={Settings} label="Preferences" />
               <div className="h-px bg-gray-200 dark:bg-slate-700 my-1"></div>
-              <MenuItem icon={LogOut} label="Sign Out" danger />
+              <MenuItem
+                icon={LogOut}
+                label="Sign Out"
+                danger
+                onClick={handleLogoutClick}
+              />
             </div>
           </motion.div>
         )}
@@ -1407,8 +1598,9 @@ const ProfileDropdown = () => {
   );
 };
 
-const MenuItem = ({ icon: Icon, label, danger }) => (
+const MenuItem = ({ icon: Icon, label, danger, onClick }) => (
   <button
+    onClick={onClick}
     className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-colors
     ${
       danger
